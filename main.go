@@ -2,45 +2,56 @@ package main
 
 import (
 	"flag"
-	"github.com/dodopizza/jaeger-kusto/runner"
+	"kusto-jaeger-plugin/internal/config"
 	"os"
 
-	"github.com/dodopizza/jaeger-kusto/config"
-	"github.com/dodopizza/jaeger-kusto/store"
+	"github.com/Azure/azure-kusto-go/kusto"
+
+	"github.com/hashicorp/go-hclog"
 )
 
+const (
+	loggerName = "kusto-jaeger-plugin"
+)
+
+var configPath string
+
 func main() {
-	configPath := ""
-	flag.StringVar(&configPath, "config", "", "The path to the plugin's configuration file")
+	flag.StringVar(&configPath, "config", "", "A path to the plugin's configuration file")
 	flag.Parse()
+	/*
+		Get the logger for the application
+	*/
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:       loggerName,
+		Level:      hclog.Warn, // Warn and up only
+		JSONFormat: true,
+	})
 
-	pluginConfig, err := config.ParseConfig(configPath)
+	/*
+		Parse the configs passed in
+	*/
+	kc, err := config.ParseKustoConfig(logger, configPath)
+
 	if err != nil {
+		logger.Error("error parsing kusto connection config", "error", err)
 		os.Exit(1)
 	}
 
-	logger := config.NewLogger(pluginConfig)
-	logger.Info("plugin config", "config", pluginConfig)
+	var kcsb *kusto.ConnectionStringBuilder
 
-	if err := config.ServeDiagnosticsServer(pluginConfig, logger); err != nil {
-		logger.Error("error occurred while starting diagnostics server", "error", err)
-		os.Exit(1)
+	if kc.AuthType == "mi" {
+		kcsb = kusto.NewConnectionStringBuilder(kc.Endpoint).WithSystemManagedIdentity()
+	} else {
+		logger.Info("Connecting to Kusto cluster using application id credentials")
+		kcsb = kusto.NewConnectionStringBuilder(kc.Endpoint).WithAadAppKey(kc.AppId, kc.AppKey, kc.TenantId)
 	}
 
-	kustoConfig, err := config.ParseKustoConfig(pluginConfig.KustoConfigPath)
-	if err != nil {
-		logger.Error("error occurred while reading kusto configuration", "error", err)
-		os.Exit(1)
-	}
+	c, cerr := kusto.New(kcsb)
 
-	kustoStore, err := store.NewStore(pluginConfig, kustoConfig, logger)
-	if err != nil {
-		logger.Error("error occurred while initializing kusto storage", "error", err)
+	if cerr != nil {
+		logger.Error("error connecting to kusto", "error", cerr)
 		os.Exit(2)
 	}
-
-	if err := runner.Serve(pluginConfig, kustoStore, logger); err != nil {
-		logger.Error("error occurred while invoking runner", "error", err)
-		os.Exit(3)
-	}
+	defer c.Close()
 }
