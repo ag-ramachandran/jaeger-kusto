@@ -1,0 +1,7 @@
+{
+    "auth_type": "mi",
+    "application_id": "app-id",
+    "cluster_uri": "https://test-otel.dev.kusto.windows.net",
+    "db_name":"otel-db",
+    "traces_table_name":"otel-traces"
+}

@@ -1,0 +1,10 @@
+{
+    "auth_type": "app",
+    "application_id": "app-id",
+    "application_key": "app-key",
+    "tenant_id": "tenant-id",
+    "cluster_uri": "https://test-otel.dev.kusto.windows.net",
+    "db_name":"otel-db",
+    "traces_table_name":"otel-traces",
+    "sink_type":"jaeger"
+}

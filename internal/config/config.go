@@ -23,7 +23,6 @@ type KustoConfig struct {
 	Database        string `json:"db_name"`           // database to query
 	TracesTableName string `json:"traces_table_name"` // raw traces table
 	SinkType        string `json:"sink_type"`         // can be OTEL, Jaeger (may be add additional backend in the future)
-
 }
 
 // ParseKustoConfig reads file at path and returns instance of KustoConfig or error
