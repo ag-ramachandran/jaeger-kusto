@@ -17,21 +17,18 @@ type store struct {
 
 // NewStore creates new Kusto store for Jaeger span storage
 func NewStore(pc *config.PluginConfig, kc *config.KustoConfig, logger hclog.Logger) (shared.StoragePlugin, error) {
-
 	kcsb := kusto.NewConnectionStringBuilder(kc.Endpoint).WithAadAppKey(kc.ClientID, kc.ClientSecret, kc.TenantID)
+	kcsb.SetConnectorDetails("JaegerPlugin", "1.0.0", "", "", false, "", kusto.StringPair{})
 	client, err := kusto.New(kcsb)
 	if err != nil {
 		return nil, err
 	}
-
 	// create factory for trace table opertations
 	factory := newKustoFactory(client, pc, kc.Database, kc.TraceTableName)
-
 	reader, err := newKustoSpanReader(factory, logger)
 	if err != nil {
 		return nil, err
 	}
-
 	writer, err := newKustoSpanWriter(factory, logger, pc)
 	if err != nil {
 		return nil, err
