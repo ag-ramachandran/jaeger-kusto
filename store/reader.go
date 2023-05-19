@@ -27,7 +27,7 @@ type kustoSpanReader struct {
 }
 
 type kustoReaderClient interface {
-	Query(ctx context.Context, db string, query kusto.Stmt, options ...kusto.QueryOption) (*kusto.RowIterator, error)
+	Query(ctx context.Context, db string, query kusto.Statement, options ...kusto.QueryOption) (*kusto.RowIterator, error)
 }
 
 var queryMap = map[string]string{}
