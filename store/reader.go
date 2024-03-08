@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -27,7 +28,7 @@ type kustoSpanReader struct {
 }
 
 type kustoReaderClient interface {
-	Query(ctx context.Context, db string, query kusto.Stmt, options ...kusto.QueryOption) (*kusto.RowIterator, error)
+	Query(ctx context.Context, db string, query kusto.Statement, options ...kusto.QueryOption) (*kusto.RowIterator, error)
 }
 
 var queryMap = map[string]string{}
@@ -43,7 +44,6 @@ func newKustoSpanReader(factory *kustoFactory, logger hclog.Logger) (*kustoSpanR
 
 // Prepares reader queries parts beforehand
 func prepareReaderStatements(tableName string) {
-
 	queryMap[getTrace] = fmt.Sprintf(getTraceQuery, tableName)
 	queryMap[getServices] = fmt.Sprintf(getServicesQuery, tableName)
 	queryMap[getOpsWithNoParams] = fmt.Sprintf(getOpsWithNoParamsQuery, tableName)
@@ -395,9 +395,18 @@ func (r *kustoSpanReader) FindTraces(ctx context.Context, query *spanstore.Trace
 
 	for _, spanArray := range m {
 		trace := model.Trace{Spans: spanArray}
-		r.logger.Debug("Trace ==> " + trace.String())
+		//r.logger.Debug("Trace ==> " + trace.String())
 		traces = append(traces, &trace)
 	}
+
+	b, err := json.Marshal(traces)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+
+	}
+	r.logger.Debug("<== ExitingTrace ==> ")
+	r.logger.Debug("Size of traces ==> " + string(b))
+	r.logger.Debug("<== ExitingTrace ==> ")
 	return traces, err
 }
 
