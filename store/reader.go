@@ -380,8 +380,7 @@ func (r *kustoSpanReader) FindTraces(ctx context.Context, query *spanstore.Trace
 
 			var span *model.Span
 			span, err = transformKustoSpanToModelSpan(&rec, r.logger)
-			r.logger.Debug("Span ==> " + span.String())
-
+			
 			if err != nil {
 				return err
 			}
