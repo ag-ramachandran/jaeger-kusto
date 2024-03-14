@@ -110,7 +110,8 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 	}
 
 	handleProcessTags(kustoSpan.ProcessTags.Value)
-	replacer := strings.NewReplacer("[", "\"[", "]", "]\"", ".", "", "\\", "")
+	// Replace the special chars(including start and end []) for correct JSON parsing
+	replacer := strings.NewReplacer(":[", ":\"[", "],", "]\",", ".", "", "\\", "")
 	processTag := []byte(replacer.Replace(string(kustoSpan.ProcessTags.Value)))
 	err = json.Unmarshal(processTag, &process.Tag)
 	if err != nil {
