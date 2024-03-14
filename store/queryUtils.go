@@ -36,20 +36,20 @@ var (
 	| sort by ProcessServiceName asc`
 
 	getOpsWithNoParams      = `getOpsWithNoParams`
-	getOpsWithNoParamsQuery = `%s
-	| summarize count() by SpanName
+	getOpsWithNoParamsQuery = `set query_results_cache_max_age = time(5m);%s
+	| summarize count() by SpanName , SpanKind
 	| sort by count_
-	| project-away count_`
+	| project OperationName=SpanName,SpanKind`
 
 	getOpsWithParams      = `getOpsWithParams`
-	getOpsWithParamsQuery = `%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name'])
+	getOpsWithParamsQuery = `set query_results_cache_max_age = time(5m); %s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name'])
 	| where ProcessServiceName == ParamProcessServiceName
-	| summarize count() by SpanName
+	| summarize count() by SpanName , SpanKind
 	| sort by count_
-	| project-away count_`
+	| project OperationName=SpanName,SpanKind`
 
 	getDependencies      = `getDependencies`
-	getDependenciesQuery = `%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name'])
+	getDependenciesQuery = `set query_results_cache_max_age = time(5m);%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name'])
 	| where StartTime < ParamEndTs and StartTime > (ParamEndTs-ParamLookBack)
 	| project ProcessServiceName, SpanID, ChildOfSpanId = ParentID | join (%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name'])
 	| project ChildOfSpanId=SpanID, ParentService=ProcessServiceName) on ChildOfSpanId | where ProcessServiceName != ParentService
