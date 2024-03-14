@@ -70,7 +70,6 @@ func (r *kustoSpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (
 		)).MustParameters(kusto.NewParameters().Must(kusto.QueryValues{"ParamTraceID": traceID.String()}))
 
 	log.Default().Println(kustoStmt.String())
-
 	iter, err := r.client.Query(ctx, r.database, kustoStmt)
 	if err != nil {
 		return nil, err
@@ -90,6 +89,7 @@ func (r *kustoSpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (
 			var span *model.Span
 			span, err = transformKustoSpanToModelSpan(&rec, r.logger)
 			if err != nil {
+				r.logger.Error(fmt.Sprintf("Error in transformKustoSpanToModelSpan. TraceId: %s SPanId: %s", rec.TraceID, rec.SpanID), err)
 				return err
 			}
 			spans = append(spans, span)

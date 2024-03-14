@@ -44,10 +44,15 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 	var refs []dbmodel.Reference
 	err := json.Unmarshal(kustoSpan.References.Value, &refs)
 	if err != nil {
+		logger.Error(fmt.Sprintf("Error in Unmarshal refs %s. TraceId: %s SpanId: %s ", kustoSpan.References.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
 		return nil, err
 	}
 	var tags map[string]interface{}
 	err = json.Unmarshal(kustoSpan.Tags.Value, &tags)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error in Unmarshal tags %s. TraceId: %s  SpanId: %s ", kustoSpan.Tags.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
+		return nil, err
+	}
 	// Fix issues where there are JSON Array types in tags. On nested tag types convert arrays to string. Else this causes issues in span parsing in Jaeger span transformations
 	for key, element := range tags {
 		elementString := fmt.Sprint(element)
@@ -56,14 +61,11 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 			tags[key] = elementString
 		}
 	}
-	if err != nil {
-		return nil, err
-	}
 
 	var events []event
 	err = json.Unmarshal(kustoSpan.Logs.Value, &events)
 	if err != nil {
-		logger.Warn(fmt.Sprintf("Error de-serializing data %s. The TraceId is %s and the SpanId is %s ", kustoSpan.Logs.String(), kustoSpan.TraceID, kustoSpan.SpanID))
+		logger.Error(fmt.Sprintf("Error de-serializing data %s. TraceId: %s SpanId: %s ", kustoSpan.Logs.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
 		return nil, err
 	}
 	var logs []dbmodel.Log
@@ -77,7 +79,7 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 		if timestamp != "" {
 			t, terr := time.Parse(time.RFC3339Nano, timestamp)
 			if terr != nil {
-				logger.Warn(fmt.Sprintf("Error parsing log timestamp. Error %s. The TraceId is %s and the SpanId is %s & timestamp is %s ", terr.Error(), kustoSpan.TraceID, kustoSpan.SpanID, timestamp))
+				logger.Warn(fmt.Sprintf("Error parsing log timestamp. Error %s. TraceId: %s SpanId: %s & timestamp: %s ", terr.Error(), kustoSpan.TraceID, kustoSpan.SpanID, timestamp))
 			} else {
 				log.Timestamp = uint64(t.UnixMicro())
 			}
@@ -107,10 +109,12 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 		Tag:         nil,
 	}
 
-	replacer := strings.NewReplacer("[", "", "]", "", ".", "", "\\", "")
+	handleProcessTags(kustoSpan.ProcessTags.Value)
+	replacer := strings.NewReplacer("[", "\"[", "]", "]\"", ".", "", "\\", "")
 	processTag := []byte(replacer.Replace(string(kustoSpan.ProcessTags.Value)))
 	err = json.Unmarshal(processTag, &process.Tag)
 	if err != nil {
+		logger.Error(fmt.Sprintf("ERROR in Unmarshal processTags %s. TraceId: %s SpanId: %s ", string(kustoSpan.ProcessTags.Value), kustoSpan.TraceID, kustoSpan.SpanID), err)
 		return nil, err
 	}
 
@@ -147,6 +151,21 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 		Process:       convertedSpan.Process,
 	}
 	return span, err
+}
+
+// handleProcessTags replaces the double quotes with single quotes in the process tags list
+func handleProcessTags(processTagsString []byte) {
+
+	var insideSquareBrackets bool
+	for i := 0; i < len(processTagsString); i++ {
+		if processTagsString[i] == '[' {
+			insideSquareBrackets = true
+		} else if processTagsString[i] == ']' {
+			insideSquareBrackets = false
+		} else if insideSquareBrackets && processTagsString[i] == '"' {
+			processTagsString[i] = '\''
+		}
+	}
 }
 
 func getTagsValues(tags []model.KeyValue) []string {
