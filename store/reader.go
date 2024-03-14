@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -398,15 +397,6 @@ func (r *kustoSpanReader) FindTraces(ctx context.Context, query *spanstore.Trace
 		//r.logger.Debug("Trace ==> " + trace.String())
 		traces = append(traces, &trace)
 	}
-
-	b, err := json.Marshal(traces)
-	if err != nil {
-		fmt.Printf("Error: %s", err)
-
-	}
-	r.logger.Debug("<== ExitingTrace ==> ")
-	r.logger.Debug("Size of traces ==> " + string(b))
-	r.logger.Debug("<== ExitingTrace ==> ")
 	return traces, err
 }
 
