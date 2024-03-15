@@ -24,9 +24,12 @@ type kustoSpan struct {
 	Duration           time.Duration `kusto:"Duration"`
 	Tags               value.Dynamic `kusto:"Tags"`
 	Logs               value.Dynamic `kusto:"Logs"`
+	Links              value.Dynamic `kusto:"Links"`
 	ProcessServiceName string        `kusto:"ProcessServiceName"`
 	ProcessTags        value.Dynamic `kusto:"ProcessTags"`
 	ProcessID          string        `kusto:"ProcessID"`
+	SpanKind           string        `kusto:"SpanKind"`
+	SpanStatus         string        `kusto:"SpanStatus"`
 }
 
 type event struct {
@@ -41,12 +44,15 @@ const (
 )
 
 func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*model.Span, error) {
-	var refs []dbmodel.Reference
-	err := json.Unmarshal(kustoSpan.References.Value, &refs)
+	// eMin":"datetime(2024-03-13T15:56:28.628Z)"}: EXTRA_VALUE_AT_END=<nil> @module=jaeger-kusto timestamp=2024-03-15T15:56:28.634Z
+	//2024-03-15T15:56:29.206Z [ERROR] jaeger-kusto: Error parsing span to domain. Error not a valid SpanRefType string . The TraceId is d1b06c73d963045e657158dbd0ccf6d9 and the SpanId is cfb683d327e4dd90 : @module=jaeger-kusto timestamp=2024-03-15T15:56:29.205Z
+	//
+	spanReferences, err := transformReferencesToLinks(kustoSpan, logger)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error in Unmarshal refs %s. TraceId: %s SpanId: %s ", kustoSpan.References.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
+		logger.Error(fmt.Sprintf("Error in Unmarshal Refs %s. TraceId: %s  SpanId: %s ", kustoSpan.Tags.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
 		return nil, err
 	}
+
 	var tags map[string]interface{}
 	err = json.Unmarshal(kustoSpan.Tags.Value, &tags)
 	if err != nil {
@@ -62,45 +68,35 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 		}
 	}
 
-	var events []event
-	err = json.Unmarshal(kustoSpan.Logs.Value, &events)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error de-serializing data %s. TraceId: %s SpanId: %s ", kustoSpan.Logs.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
-		return nil, err
+	// https://opentelemetry.io/docs/specs/otel/trace/sdk_exporters/jaeger/#status
+	switch kustoSpan.SpanStatus {
+	case "STATUS_CODE_ERROR":
+		tags["otel.status_code"] = "ERROR"
+		tags["error"] = true
+	case "STATUS_CODE_OK":
+		tags["otel.status_code"] = "OK"
+	default:
+		break
 	}
-	var logs []dbmodel.Log
 
-	// Map event to logs that can be set. ref: https://opentelemetry.io/docs/reference/specification/trace/sdk_exporters/jaeger/#events
-	// Set all the events' timestam and attibute, to log's timestamp and fields by iterating over span events
-	for _, evt := range events {
-		log := dbmodel.Log{}
-		var kvs []dbmodel.KeyValue
-		timestamp := evt.Timestamp
-		if timestamp != "" {
-			t, terr := time.Parse(time.RFC3339Nano, timestamp)
-			if terr != nil {
-				logger.Warn(fmt.Sprintf("Error parsing log timestamp. Error %s. TraceId: %s SpanId: %s & timestamp: %s ", terr.Error(), kustoSpan.TraceID, kustoSpan.SpanID, timestamp))
-			} else {
-				log.Timestamp = uint64(t.UnixMicro())
-			}
-		}
+	// https://opentelemetry.io/docs/specs/otel/trace/sdk_exporters/jaeger/#spankind
+	switch kustoSpan.SpanKind {
+	case "SPAN_KIND_SERVER":
+		tags["span.kind"] = "server"
+	case "SPAN_KIND_CLIENT":
+		tags["span.kind"] = "client"
+	case "SPAN_KIND_CONSUMER":
+		tags["span.kind"] = "consumer"
+	case "SPAN_KIND_PRODUCER":
+		tags["span.kind"] = "producer"
+	default:
+		break
+	}
 
-		// EventName should be added as log's field.
-		kvs = append(kvs, dbmodel.KeyValue{
-			Key:   "event",
-			Value: evt.EventName,
-			Type:  dbmodel.StringType,
-		})
-		for ek, ev := range evt.EventAttributes {
-			kv := dbmodel.KeyValue{
-				Key:   ek,
-				Value: fmt.Sprint(ev),
-				Type:  dbmodel.ValueType(strings.ToLower(reflect.TypeOf(ev).String())),
-			}
-			kvs = append(kvs, kv)
-		}
-		log.Fields = kvs
-		logs = append(logs, log)
+	logs, err := transformEventsToLogs(kustoSpan, logger)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error in transform (transformEventsToLogs) %s. TraceId: %s  SpanId: %s ", kustoSpan.Tags.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
+		return nil, err
 	}
 
 	process := dbmodel.Process{
@@ -109,7 +105,7 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 		Tag:         nil,
 	}
 
-	handleProcessTags(kustoSpan.ProcessTags.Value)
+	escapeProcessTags(kustoSpan.ProcessTags.Value)
 	// Replace the special chars(including start and end []) for correct JSON parsing
 	replacer := strings.NewReplacer(":[", ":\"[", "],", "]\",", ".", "", "\\", "")
 	processTag := []byte(replacer.Replace(string(kustoSpan.ProcessTags.Value)))
@@ -123,8 +119,8 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 		TraceID:         dbmodel.TraceID(kustoSpan.TraceID),
 		SpanID:          dbmodel.SpanID(kustoSpan.SpanID),
 		Flags:           uint32(kustoSpan.Flags),
-		OperationName:   "",
-		References:      refs,
+		OperationName:   kustoSpan.OperationName,
+		References:      spanReferences,
 		StartTime:       uint64(kustoSpan.StartTime.UnixMilli()),
 		StartTimeMillis: uint64(kustoSpan.StartTime.UnixMilli()),
 		Duration:        uint64(kustoSpan.Duration.Microseconds()),
@@ -154,9 +150,78 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 	return span, err
 }
 
-// handleProcessTags replaces the double quotes with single quotes in the process tags list
-func handleProcessTags(processTagsString []byte) {
+func transformReferencesToLinks(kustoSpan *kustoSpan, logger hclog.Logger) ([]dbmodel.Reference, error) {
+	// There are 2 parts in the links. The first one is the CHILD_OF hierarchy and the second one is the FOLLOWS_FROM hierarchy
+	// Ref : https://opentelemetry.io/docs/specs/otel/trace/sdk_exporters/jaeger/#links
+	// Note that we can convert SpanLinkAttributes to logs too. But this is not added at the moment
+	var childOfRefs []dbmodel.Reference
+	err := json.Unmarshal(kustoSpan.References.Value, &childOfRefs)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error in Unmarshal CO refs %s. TraceId: %s SpanId: %s ", kustoSpan.References.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
+		return nil, err
+	}
 
+	var followsFromRefs []dbmodel.Reference
+	err = json.Unmarshal(kustoSpan.Links.Value, &followsFromRefs)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error in Unmarshal FF Refs %s. TraceId: %s SpanId: %s ", kustoSpan.References.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
+		return nil, err
+	}
+
+	for _, ref := range followsFromRefs {
+		ref.RefType = dbmodel.FollowsFrom
+	}
+	// Combine the childOfRefs and followsFromRefs
+	spanRefs := append(childOfRefs, followsFromRefs...)
+	return spanRefs, nil
+
+}
+
+// Ref : https://opentelemetry.io/docs/specs/otel/trace/sdk_exporters/jaeger/#events
+func transformEventsToLogs(kustoSpan *kustoSpan, logger hclog.Logger) ([]dbmodel.Log, error) {
+	var events []event
+	err := json.Unmarshal(kustoSpan.Logs.Value, &events)
+	if err != nil {
+		return nil, err
+	}
+	// Get the events field from events and convert it to logs
+	var logs []dbmodel.Log
+	// Map event to logs that can be set. ref: https://opentelemetry.io/docs/reference/specification/trace/sdk_exporters/jaeger/#events
+	// Set all the events' timestam and attibute, to log's timestamp and fields by iterating over span events
+	for _, evt := range events {
+		log := dbmodel.Log{}
+		var kvs []dbmodel.KeyValue
+		timestamp := evt.Timestamp
+		if timestamp != "" {
+			t, terr := time.Parse(time.RFC3339Nano, timestamp)
+			if terr != nil {
+				logger.Warn(fmt.Sprintf("Error parsing log timestamp. Error %s. TraceId: %s SpanId: %s & timestamp: %s ", terr.Error(), kustoSpan.TraceID, kustoSpan.SpanID, timestamp))
+			} else {
+				log.Timestamp = uint64(t.UnixMicro())
+			}
+		}
+		// EventName should be added as log's field.
+		kvs = append(kvs, dbmodel.KeyValue{
+			Key:   "event",
+			Value: evt.EventName,
+			Type:  dbmodel.StringType,
+		})
+		for ek, ev := range evt.EventAttributes {
+			kv := dbmodel.KeyValue{
+				Key:   ek,
+				Value: fmt.Sprint(ev),
+				Type:  dbmodel.ValueType(strings.ToLower(reflect.TypeOf(ev).String())),
+			}
+			kvs = append(kvs, kv)
+		}
+		log.Fields = kvs
+		logs = append(logs, log)
+	}
+	return logs, nil
+}
+
+// escapeProcessTags replaces the double quotes with single quotes in the process tags list
+func escapeProcessTags(processTagsString []byte) {
 	var insideSquareBrackets bool
 	for i := 0; i < len(processTagsString); i++ {
 		if processTagsString[i] == '[' {

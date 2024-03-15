@@ -60,7 +60,7 @@ var (
 	getTraceIdBaseQuery = `%s | extend Duration=totimespan(datetime_diff('microsecond',EndTime,StartTime)) , ProcessServiceName=tostring(ResourceAttributes.['service.name'])`
 
 	getTracesBase      = `getTracesBase`
-	getTracesBaseQuery = `%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name']),Duration=totimespan(datetime_diff('millisecond',EndTime,StartTime))`
+	getTracesBaseQuery = `%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name']),Duration=totimespan(datetime_diff('microsecond',EndTime,StartTime))`
 )
 
 // taken from https://github.com/logzio/jaeger-logzio/blob/master/store/queryUtils.go
