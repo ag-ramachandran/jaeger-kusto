@@ -24,12 +24,20 @@ type kustoSpan struct {
 	Duration           time.Duration `kusto:"Duration"`
 	Tags               value.Dynamic `kusto:"Tags"`
 	Logs               value.Dynamic `kusto:"Logs"`
-	Links              value.Dynamic `kusto:"Links"`
+	Links              []link        `kusto:"Links"`
 	ProcessServiceName string        `kusto:"ProcessServiceName"`
 	ProcessTags        value.Dynamic `kusto:"ProcessTags"`
 	ProcessID          string        `kusto:"ProcessID"`
 	SpanKind           string        `kusto:"SpanKind"`
 	SpanStatus         string        `kusto:"SpanStatus"`
+}
+
+type link struct {
+	TraceID            dbmodel.TraceID `json:"TraceID"`
+	SpanID             dbmodel.SpanID  `json:"SpanID"`
+	RefType            string          `kusto:"RefType"`
+	TraceState         string          `kusto:"TraceState,omitempty"`
+	SpanLinkAttributes value.Dynamic   `kusto:"SpanLinkAttributes,omitempty"`
 }
 
 type event struct {
@@ -155,26 +163,27 @@ func transformReferencesToLinks(kustoSpan *kustoSpan, logger hclog.Logger) ([]db
 	// Ref : https://opentelemetry.io/docs/specs/otel/trace/sdk_exporters/jaeger/#links
 	// Note that we can convert SpanLinkAttributes to logs too. But this is not added at the moment
 	var childOfRefs []dbmodel.Reference
-	err := json.Unmarshal(kustoSpan.References.Value, &childOfRefs)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error in Unmarshal CO refs %s. TraceId: %s SpanId: %s ", kustoSpan.References.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
-		return nil, err
+	referenceValue := kustoSpan.References.Value
+	if len(referenceValue) > 0 {
+		err := json.Unmarshal(referenceValue, &childOfRefs)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error in Unmarshal CO refs %s. TraceId: %s SpanId: %s. References: %s",
+				kustoSpan.References.String(), kustoSpan.TraceID, kustoSpan.SpanID, kustoSpan.References.Value), err)
+			return nil, err
+		}
 	}
 
 	var followsFromRefs []dbmodel.Reference
-	err = json.Unmarshal(kustoSpan.Links.Value, &followsFromRefs)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error in Unmarshal FF Refs %s. TraceId: %s SpanId: %s ", kustoSpan.References.String(), kustoSpan.TraceID, kustoSpan.SpanID), err)
-		return nil, err
-	}
-
-	for _, ref := range followsFromRefs {
-		ref.RefType = dbmodel.FollowsFrom
+	for _, ref := range kustoSpan.Links {
+		followsFromRefs = append(followsFromRefs, dbmodel.Reference{
+			RefType: dbmodel.FollowsFrom,
+			TraceID: ref.TraceID,
+			SpanID:  ref.SpanID,
+		})
 	}
 	// Combine the childOfRefs and followsFromRefs
 	spanRefs := append(childOfRefs, followsFromRefs...)
 	return spanRefs, nil
-
 }
 
 // Ref : https://opentelemetry.io/docs/specs/otel/trace/sdk_exporters/jaeger/#events
