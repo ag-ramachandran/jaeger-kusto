@@ -26,7 +26,7 @@ var (
 
 var (
 	getTrace      = `getTrace`
-	getTraceQuery = `%s | where TraceID == ParamTraceID | extend Duration=totimespan(datetime_diff('microsecond',EndTime,StartTime)) , ProcessServiceName=tostring(ResourceAttributes.['service.name']) | project-rename Tags=TraceAttributes,Logs=Events,ProcessTags=ResourceAttributes| extend References=iff(isempty(ParentID),todynamic("[]"),pack_array(bag_pack("refType","CHILD_OF","traceID",TraceID,"spanID",ParentID)))`
+	getTraceQuery = `%s | where TraceID == ParamTraceID | extend Duration=datetime_diff('microsecond',EndTime,StartTime) , ProcessServiceName=tostring(ResourceAttributes.['service.name']) | project-rename Tags=TraceAttributes,Logs=Events,ProcessTags=ResourceAttributes| extend References=iff(isempty(ParentID),todynamic("[]"),pack_array(bag_pack("refType","CHILD_OF","traceID",TraceID,"spanID",ParentID)))`
 
 	getServices      = `getServices`
 	getServicesQuery = `set query_results_cache_max_age = time(5m); %s 
@@ -57,10 +57,10 @@ var (
 	| evaluate bag_unpack(Call)`
 
 	getTraceIdBase      = `getTraceIdBase`
-	getTraceIdBaseQuery = `%s | extend Duration=totimespan(datetime_diff('microsecond',EndTime,StartTime)) , ProcessServiceName=tostring(ResourceAttributes.['service.name'])`
+	getTraceIdBaseQuery = `%s | extend Duration=datetime_diff('microsecond',EndTime,StartTime) , ProcessServiceName=tostring(ResourceAttributes.['service.name'])`
 
 	getTracesBase      = `getTracesBase`
-	getTracesBaseQuery = `%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name']),Duration=totimespan(datetime_diff('microsecond',EndTime,StartTime))`
+	getTracesBaseQuery = `%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name']),Duration=datetime_diff('microsecond',EndTime,StartTime)`
 )
 
 // taken from https://github.com/logzio/jaeger-logzio/blob/master/store/queryUtils.go

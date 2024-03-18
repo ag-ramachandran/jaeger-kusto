@@ -17,11 +17,11 @@ import (
 type kustoSpan struct {
 	TraceID            string        `kusto:"TraceID"`
 	SpanID             string        `kusto:"SpanID"`
-	OperationName      string        `kusto:"OperationName"`
+	SpanName           string        `kusto:"SpanName"`
 	References         value.Dynamic `kusto:"References"`
 	Flags              int32         `kusto:"Flags"`
 	StartTime          time.Time     `kusto:"StartTime"`
-	Duration           time.Duration `kusto:"Duration"`
+	Duration           int64         `kusto:"Duration"`
 	Tags               value.Dynamic `kusto:"Tags"`
 	Logs               value.Dynamic `kusto:"Logs"`
 	Links              []link        `kusto:"Links"`
@@ -115,9 +115,10 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 
 	escapeProcessTags(kustoSpan.ProcessTags.Value)
 	// Replace the special chars(including start and end []) for correct JSON parsing
-	replacer := strings.NewReplacer(":[", ":\"[", "],", "]\",", ".", "", "\\", "")
+	replacer := strings.NewReplacer(":[", ":\"[", "],", "]\",", "\\", "")
 	processTag := []byte(replacer.Replace(string(kustoSpan.ProcessTags.Value)))
 	err = json.Unmarshal(processTag, &process.Tag)
+	// See if this parsing yielded an error ?
 	if err != nil {
 		logger.Error(fmt.Sprintf("ERROR in Unmarshal processTags %s. TraceId: %s SpanId: %s ", string(kustoSpan.ProcessTags.Value), kustoSpan.TraceID, kustoSpan.SpanID), err)
 		return nil, err
@@ -127,11 +128,11 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 		TraceID:         dbmodel.TraceID(kustoSpan.TraceID),
 		SpanID:          dbmodel.SpanID(kustoSpan.SpanID),
 		Flags:           uint32(kustoSpan.Flags),
-		OperationName:   kustoSpan.OperationName,
+		OperationName:   kustoSpan.SpanName,
 		References:      spanReferences,
-		StartTime:       uint64(kustoSpan.StartTime.UnixMilli()),
+		StartTime:       uint64(kustoSpan.StartTime.UnixMicro()),
 		StartTimeMillis: uint64(kustoSpan.StartTime.UnixMilli()),
-		Duration:        uint64(kustoSpan.Duration.Microseconds()),
+		Duration:        uint64(kustoSpan.Duration),
 		Tags:            nil,
 		Tag:             tags,
 		Logs:            logs,
@@ -146,11 +147,11 @@ func transformKustoSpanToModelSpan(kustoSpan *kustoSpan, logger hclog.Logger) (*
 	span := &model.Span{
 		TraceID:       convertedSpan.TraceID,
 		SpanID:        convertedSpan.SpanID,
-		OperationName: kustoSpan.OperationName,
+		OperationName: kustoSpan.SpanName,
 		References:    convertedSpan.References,
 		Flags:         convertedSpan.Flags,
 		StartTime:     kustoSpan.StartTime,
-		Duration:      kustoSpan.Duration,
+		Duration:      time.Duration(kustoSpan.Duration) * time.Microsecond,
 		Tags:          convertedSpan.Tags,
 		Logs:          convertedSpan.Logs,
 		Process:       convertedSpan.Process,
