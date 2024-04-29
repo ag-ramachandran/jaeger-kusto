@@ -54,7 +54,7 @@ func (kc *KustoConfig) Validate() error {
 		return errors.New("missing endpoint in kusto configuration")
 	}
 	if kc.ClientID == "" || kc.ClientSecret == "" || kc.TenantID == "" {
-		if kc.ManagedIdentityId == "" {
+		if !kc.UseManagedIdentity {
 			return errors.New("missing client configuration (ClientId, ClientSecret, TenantId) & ManagedIdentity is missing for kusto")
 		}
 
