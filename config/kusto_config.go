@@ -53,11 +53,11 @@ func (kc *KustoConfig) Validate() error {
 	if kc.Endpoint == "" {
 		return errors.New("missing endpoint in kusto configuration")
 	}
-	if kc.ClientID == "" || kc.ClientSecret == "" || kc.TenantID == "" {
-		if !kc.UseManagedIdentity {
+	// If the config indicates a non ManagedIdentity or WorkloadIdentity, then the ClientID, ClientSecret, and TenantID must be provided.
+	if !kc.UseManagedIdentity && !kc.UseWorkloadIdentity {
+		if kc.ClientID == "" || kc.ClientSecret == "" || kc.TenantID == "" {
 			return errors.New("missing client configuration (ClientId, ClientSecret, TenantId) & ManagedIdentity is missing for kusto")
 		}
-
 	}
 	//if no Tracetable name provided, default to OTELTraces.
 	if kc.TraceTableName == "" {
