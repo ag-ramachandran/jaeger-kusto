@@ -1,0 +1,17 @@
+apiVersion: v1
+data:
+  jaeger-kusto-config.json: |-
+    {
+        "clientId": "",
+        "clientSecret": "",
+        "database": "e2e",
+        "endpoint": "",
+        "tenantId": ""
+    }
+kind: ConfigMap
+metadata:
+  annotations:
+    use-subpath: "true"
+  labels:
+    io.kompose.service: plugin
+  name: plugin-cm0

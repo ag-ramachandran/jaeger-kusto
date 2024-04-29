@@ -1,0 +1,19 @@
+apiVersion: v1
+data:
+  jaeger-kusto-plugin-config.json: |-
+    {
+        "diagnosticsProfilingEnabled": true,
+        "kustoConfigPath": "/config/jaeger-kusto-config.json",
+        "logLevel": "info",
+        "logJson": true,
+        "remoteMode": true,
+        "tracingSamplerPercentage": 0.0,
+        "tracingRPCMetrics": false
+    }
+kind: ConfigMap
+metadata:
+  annotations:
+    use-subpath: "true"
+  labels:
+    io.kompose.service: plugin
+  name: plugin-cm1

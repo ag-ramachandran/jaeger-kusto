@@ -1,0 +1,8 @@
+name: build/server/docker-compose
+description: A generated Helm Chart for build/server/docker-compose from Skippbox Kompose
+version: 0.0.1
+apiVersion: v2
+keywords:
+  - build/server/docker-compose
+sources:
+home:

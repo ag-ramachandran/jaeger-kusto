@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    kompose.cmd: ./kompose convert -c -f build/server/docker-compose.yml
+    kompose.version: 1.33.0 (3ce457399)
+  labels:
+    io.kompose.network/server-default: "true"
+    io.kompose.service: plugin
+  name: plugin
+spec:
+  containers:
+    - args:
+        - --config=/config/jaeger-kusto-plugin-config.json
+      env:
+        - name: JAEGER_AGENT_HOST
+          value: jaeger
+        - name: JAEGER_AGENT_PORT
+          value: "6831"
+      image: plugin
+      name: plugin
+      ports:
+        - containerPort: 6060
+          hostPort: 6060
+          protocol: TCP
+        - containerPort: 8989
+          hostPort: 8989
+          protocol: TCP
+      volumeMounts:
+        - mountPath: /config/jaeger-kusto-config.json
+          name: plugin-cm0
+          subPath: jaeger-kusto-config.json
+        - mountPath: /config/jaeger-kusto-plugin-config.json
+          name: plugin-cm1
+          subPath: jaeger-kusto-plugin-config.json
+  restartPolicy: Never
+  volumes:
+    - configMap:
+        items:
+          - key: jaeger-kusto-config.json
+            path: jaeger-kusto-config.json
+        name: plugin-cm0
+      name: plugin-cm0
+    - configMap:
+        items:
+          - key: jaeger-kusto-plugin-config.json
+            path: jaeger-kusto-plugin-config.json
+        name: plugin-cm1
+      name: plugin-cm1
