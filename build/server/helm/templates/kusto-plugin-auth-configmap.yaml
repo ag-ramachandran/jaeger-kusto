@@ -2,11 +2,18 @@ apiVersion: v1
 data:
   jaeger-kusto-config.json: |-
     {
-        "clientId": "9dce0c8a-a96e-4120-96e1-62025971e33c",
-        "useManagedIdentity": true,
-        "database": "e2e",
-        "endpoint": "https://sdktestcluster.southeastasia.dev.kusto.windows.net",
-        "tenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        "clientId": {{ .Values.authConfig.clientId | quote}},
+        {{- if .Values.authConfig.clientSecret }}
+        "clientSecret": {{ .Values.authConfig.clientSecret | quote}},
+        {{- end }}
+        {{- if .Values.authConfig.traceTableName }}
+        "traceTableName": {{ .Values.authConfig.traceTableName | quote}},
+        {{- end }}
+        "useWorkloadIdentity": {{default false .Values.authConfig.useWorkloadIdentity }},
+        "useManagedIdentity": {{default false .Values.authConfig.useManagedIdentity}},
+        "database": {{ .Values.authConfig.database  | quote}},
+        "endpoint": {{ .Values.authConfig.clusterUrl | quote}},
+        "tenantId": {{ .Values.authConfig.tenantId | quote}}
     }
 kind: ConfigMap
 metadata:

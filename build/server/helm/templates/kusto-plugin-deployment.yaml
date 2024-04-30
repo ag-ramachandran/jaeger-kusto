@@ -16,7 +16,8 @@ spec:
           value: jaeger
         - name: JAEGER_AGENT_PORT
           value: "6831"
-      image: fluentbitcontainereast.azurecr.io/jaeger-kusto:1.0.2-CRP
+      image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
       name: kusto-jaeger-plugin
       ports:
         - containerPort: 6060

@@ -2,13 +2,15 @@ apiVersion: v1
 data:
   jaeger-kusto-plugin-config.json: |-
     {
-        "diagnosticsProfilingEnabled": true,
+        "diagnosticsProfilingEnabled": false,
         "kustoConfigPath": "/config/jaeger-kusto-config.json",
-        "logLevel": "info",
-        "logJson": true,
-        "remoteMode": true,
-        "tracingSamplerPercentage": 0.0,
-        "tracingRPCMetrics": false
+        "tracingRPCMetrics": false,
+        "logLevel": {{ .Values.baseConfig.logLevel | quote | default "info"}},
+        "logJson": {{ default true .Values.baseConfig.logJson }},
+        "remoteMode": {{ default true .Values.baseConfig.remoteMode }},
+        "tracingSamplerPercentage":   {{ default 0.0 .Values.baseConfig.tracingSamplerPercentage }},
+        "readNoTruncation": {{ default false .Values.baseConfig.readNoTruncation }},
+        "readNoTimeout": {{ default false .Values.baseConfig.readNoTimeout }}
     }
 kind: ConfigMap
 metadata:
