@@ -20,3 +20,4 @@ jaeger-kusto
 .idea/
 
 jaeger-kusto-config.json
+kompose

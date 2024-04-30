@@ -2,11 +2,10 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    kompose.cmd: ./kompose convert -c -f build/server/docker-compose.yml
     kompose.version: 1.33.0 (3ce457399)
   labels:
     io.kompose.network/server-default: "true"
-    io.kompose.service: plugin
+    io.kompose.service: kusto-jaeger-plugin
   name: plugin
 spec:
   containers:
@@ -17,8 +16,8 @@ spec:
           value: jaeger
         - name: JAEGER_AGENT_PORT
           value: "6831"
-      image: plugin
-      name: plugin
+      image: fluentbitcontainereast.azurecr.io/jaeger-kusto:1.0.2-CRP
+      name: kusto-jaeger-plugin
       ports:
         - containerPort: 6060
           hostPort: 6060
@@ -28,10 +27,10 @@ spec:
           protocol: TCP
       volumeMounts:
         - mountPath: /config/jaeger-kusto-config.json
-          name: plugin-cm0
+          name: plugin-auth-config
           subPath: jaeger-kusto-config.json
         - mountPath: /config/jaeger-kusto-plugin-config.json
-          name: plugin-cm1
+          name: plugin-base-config
           subPath: jaeger-kusto-plugin-config.json
   restartPolicy: Never
   volumes:
@@ -39,11 +38,11 @@ spec:
         items:
           - key: jaeger-kusto-config.json
             path: jaeger-kusto-config.json
-        name: plugin-cm0
-      name: plugin-cm0
+        name: plugin-auth-config
+      name: plugin-auth-config
     - configMap:
         items:
           - key: jaeger-kusto-plugin-config.json
             path: jaeger-kusto-plugin-config.json
-        name: plugin-cm1
-      name: plugin-cm1
+        name: plugin-base-config
+      name: plugin-base-config

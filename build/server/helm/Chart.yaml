@@ -1,8 +1,8 @@
-name: build/server/docker-compose
-description: A generated Helm Chart for build/server/docker-compose from Skippbox Kompose
+name: kusto-jaeger-plugin
+description: A generated Helm Chart for kusto-jaeger-plugin
 version: 0.0.1
 apiVersion: v2
 keywords:
-  - build/server/docker-compose
+  - kusto-jaeger-plugin
 sources:
 home:

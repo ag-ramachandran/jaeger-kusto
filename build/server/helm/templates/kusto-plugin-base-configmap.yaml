@@ -15,5 +15,5 @@ metadata:
   annotations:
     use-subpath: "true"
   labels:
-    io.kompose.service: plugin
-  name: plugin-cm1
+    io.kompose.service: kusto-jaeger-plugin
+  name: plugin-base-config
