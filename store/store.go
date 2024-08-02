@@ -40,6 +40,7 @@ func NewStore(pc *config.PluginConfig, kc *config.KustoConfig, logger hclog.Logg
 			kcsb = kusto.NewConnectionStringBuilder(kc.Endpoint).WithAadAppKey(kc.ClientID, kc.ClientSecret, kc.TenantID)
 		}
 	}
+	kcsb.SetConnectorDetails("Jaeger", "1.1.1-PREVIEW", "", "", false, "", kusto.StringPair{})
 	client, err := kusto.New(kcsb)
 	if err != nil {
 		return nil, err
@@ -57,13 +58,11 @@ func NewStore(pc *config.PluginConfig, kc *config.KustoConfig, logger hclog.Logg
 	if err != nil {
 		return nil, err
 	}
-
 	store := &store{
 		dependencyStoreReader: reader,
 		reader:                reader,
 		writer:                writer,
 	}
-
 	return store, nil
 }
 
