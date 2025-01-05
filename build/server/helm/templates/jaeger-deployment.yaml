@@ -7,7 +7,7 @@ metadata:
     io.kompose.service: jaeger
   name: jaeger
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       io.kompose.service: jaeger
@@ -24,6 +24,7 @@ spec:
             - --grpc-storage.server=kusto-jaeger-plugin:8989
             - --grpc-storage.connection-timeout=60s
             - --grpc-storage.tls.enabled=false
+            - --query.base-path=/tracing
           env:
             - name: SPAN_STORAGE_TYPE
               value: grpc-plugin
