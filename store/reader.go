@@ -73,7 +73,7 @@ func (r *kustoSpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (
 				"ParamTraceID": kusto.ParamType{Type: types.String},
 			},
 		)).MustParameters(kusto.NewParameters().Must(kusto.QueryValues{"ParamTraceID": traceID.String()}))
-
+	r.logger.Debug("GetServicesQuery : %s ", kustoStmt.String())
 	clientRequestId := GetClientId()
 	// Append a client request id as well to the request
 	iter, err := r.client.Query(ctx, r.database, kustoStmt, append(r.defaultReadOptions, kusto.ClientRequestID(clientRequestId))...)
