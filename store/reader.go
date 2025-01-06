@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-kusto-go/kusto/data/value"
@@ -74,7 +73,7 @@ func (r *kustoSpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (
 				"ParamTraceID": kusto.ParamType{Type: types.String},
 			},
 		)).MustParameters(kusto.NewParameters().Must(kusto.QueryValues{"ParamTraceID": traceID.String()}))
-
+	r.logger.Debug("GetServicesQuery : %s ", kustoStmt.String())
 	clientRequestId := GetClientId()
 	// Append a client request id as well to the request
 	iter, err := r.client.Query(ctx, r.database, kustoStmt, append(r.defaultReadOptions, kusto.ClientRequestID(clientRequestId))...)
@@ -228,8 +227,7 @@ func (r *kustoSpanReader) FindTraceIDs(ctx context.Context, query *spanstore.Tra
 
 	if query.Tags != nil {
 		for k, v := range query.Tags {
-			replacedTag := strings.ReplaceAll(k, ".", TagDotReplacementCharacter)
-			tagFilter := fmt.Sprintf(" | where TraceAttributes.%s == '%s' or ResourceAttributes.%s == '%s'", replacedTag, v, replacedTag, v)
+			tagFilter := fmt.Sprintf(" | where TraceAttributes['%s'] == '%s' or ResourceAttributes['%s'] == '%s'", k, v, k, v)
 			kustoStmt = kustoStmt.UnsafeAdd(tagFilter)
 		}
 	}
@@ -320,8 +318,7 @@ func (r *kustoSpanReader) FindTraces(ctx context.Context, query *spanstore.Trace
 
 	if query.Tags != nil {
 		for k, v := range query.Tags {
-			replacedTag := strings.ReplaceAll(k, ".", TagDotReplacementCharacter)
-			tagFilter := fmt.Sprintf(" | where TraceAttributes.%s == '%s' or ResourceAttributes.%s == '%s'", replacedTag, v, replacedTag, v)
+			tagFilter := fmt.Sprintf(" | where TraceAttributes['%s'] == '%s' or ResourceAttributes['%s'] == '%s'", k, v, k, v)
 			kustoStmt = kustoStmt.UnsafeAdd(tagFilter)
 		}
 	}
