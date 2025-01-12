@@ -1,13 +1,17 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  annotations:
-    kompose.version: 1.33.0 (3ce457399)
   labels:
     io.kompose.network/server-default: "true"
-    io.kompose.service: kusto-jaeger-plugin
-  name: plugin
+    io.service.name: kusto-jaeger-plugin
+    {{- if .Values.authConfig.useWorkloadIdentity }}
+    azure.workload.identity/use: "true"
+    {{- end }}      
+  name: kusto-jaeger-plugin
 spec:
+  {{- if .Values.authConfig.serviceAccountName }}
+  serviceAccountName: {{ .Values.authConfig.serviceAccountName }}
+  {{- end }}  
   containers:
     - args:
         - --config=/config/jaeger-kusto-plugin-config.json
