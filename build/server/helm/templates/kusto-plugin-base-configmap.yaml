@@ -18,4 +18,6 @@ metadata:
     use-subpath: "true"
   labels:
     io.service.name: kusto-jaeger-plugin
+    app: {{ .Release.Name }}-app
   name: plugin-base-config
+  namespace: {{ .Release.Namespace }}
