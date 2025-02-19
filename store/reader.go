@@ -313,8 +313,8 @@ func (r *kustoSpanReader) FindTraces(ctx context.Context, query *spanstore.Trace
 	kustoStmt = kustoStmt.AddLiteral(` | sample ParamNumTraces`)
 	kustoParameters = kustoParameters.AddInt("ParamNumTraces", int32(query.NumTraces))
 
-	kustoStmt = kustoStmt.AddUnsafe(fmt.Sprintf(`); %s`, queryMap[getTracesBase]))
-
+	kustoStmt = kustoStmt.AddLiteral(`); `).AddTable(r.tableName).AddLiteral(getTracesBaseQuery)
+	
 	kustoStmt = kustoStmt.AddLiteral(` | where StartTime > ParamStartTimeMin`)
 	kustoParameters = kustoParameters.AddDateTime("ParamStartTimeMin", query.StartTimeMin)
 
