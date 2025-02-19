@@ -272,7 +272,7 @@ func (r *kustoSpanReader) FindTraces(ctx context.Context, query *spanstore.Trace
 		query.NumTraces = defaultNumTraces
 	}
 
-	kustoStmt := kql.New("").AddUnsafe(fmt.Sprintf(`let TraceIDs = (%s`, queryMap[getTracesBase]))
+	kustoStmt := kql.New("let TraceIDs = (").AddTable(r.tableName).AddLiteral(getTracesBaseQuery)
 	kustoParameters := kql.NewParameters()
 
 	if query.ServiceName != "" {

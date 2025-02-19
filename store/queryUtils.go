@@ -30,7 +30,10 @@ const (
 	getTraceQuery = ` | where TraceID == ParamTraceID | extend Duration=datetime_diff('microsecond',EndTime,StartTime) , ProcessServiceName=tostring(ResourceAttributes.['service.name']) | project-rename Tags=TraceAttributes,Logs=Events,ProcessTags=ResourceAttributes| extend References=iff(isempty(ParentID),todynamic("[]"),pack_array(bag_pack("refType","CHILD_OF","traceID",TraceID,"spanID",ParentID)))`
 
 	getServices      = `getServices`
-	getServicesQuery = `set query_results_cache_max_age = time(5m); %s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name']) | where ProcessServiceName!="" | summarize by ProcessServiceName | sort by ProcessServiceName asc`
+	getServicesQuery = `| extend ProcessServiceName=tostring(ResourceAttributes.['service.name'])
+	| where ProcessServiceName!="" 
+	| summarize by ProcessServiceName 
+	| sort by ProcessServiceName asc`
 
 	getOpsWithNoParams      = `getOpsWithNoParams`
 	getOpsWithNoParamsQuery = `
@@ -55,7 +58,7 @@ const (
 	getTraceIdBaseQuery = ` | extend Duration=datetime_diff('microsecond',EndTime,StartTime) , ProcessServiceName=tostring(ResourceAttributes.['service.name'])`
 
 	getTracesBase      = `getTracesBase`
-	getTracesBaseQuery = `%s | extend ProcessServiceName=tostring(ResourceAttributes.['service.name']),Duration=datetime_diff('microsecond',EndTime,StartTime)`
+	getTracesBaseQuery = ` | extend ProcessServiceName=tostring(ResourceAttributes.['service.name']),Duration=datetime_diff('microsecond',EndTime,StartTime)`
 )
 
 // taken from https://github.com/logzio/jaeger-logzio/blob/master/store/queryUtils.go
