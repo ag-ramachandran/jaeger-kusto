@@ -40,6 +40,7 @@ func NewStore(pc *config.PluginConfig, kc *config.KustoConfig, logger hclog.Logg
 			kcsb = kusto.NewConnectionStringBuilder(kc.Endpoint).WithAadAppKey(kc.ClientID, kc.ClientSecret, kc.TenantID)
 		}
 	}
+	kcsb.SetConnectorDetails("Kusto Jaeger", "0.0.1", "plugin", "", false, "")
 	client, err := kusto.New(kcsb)
 	if err != nil {
 		return nil, err
